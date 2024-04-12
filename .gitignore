@@ -1,0 +1,4 @@
+# system & log files
+.DS_Store
+*.log
+
