@@ -44,6 +44,7 @@ const server = http.createServer((req, res) => {
     responseHandler(data, (statusCode = 200, payload = {}) => {
       const payloadString = JSON.stringify(payload);
 
+      res.setHeader("Content-Type", "application/json");
       res.writeHead(statusCode);
       res.end(payloadString);
       console.log(`returnded res: ${statusCode}`, payloadString);
