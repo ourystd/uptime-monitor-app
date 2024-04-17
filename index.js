@@ -9,6 +9,9 @@ const handlers = {
   sample(data, callback) {
     callback(200, { name: "sample handler" });
   },
+  ping(data, callback) {
+    callback(200);
+  },
   notFound(data, callback) {
     callback(404, { message: "ressouce not found" });
   },
