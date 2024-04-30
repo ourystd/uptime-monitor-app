@@ -3,24 +3,14 @@ const https = require("node:https");
 const url = require("node:url");
 const fs = require("node:fs");
 const { StringDecoder } = require("node:string_decoder");
-const config = require("./config");
-
-const handlers = {
-  sample(data, callback) {
-    callback(200, { name: "sample handler" });
-  },
-  ping(data, callback) {
-    callback(200);
-  },
-  notFound(data, callback) {
-    callback(404, { message: "ressouce not found" });
-  },
-};
+const config = require("./lib/config");
+const handlers = require("./lib/handlers");
+const { parseJSONtoObject } = require("./lib/helpers");
 
 const mainRequestHandler = (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const trimmedPathname = parsedUrl.pathname.replace(/^\/+|\/+$/g, "");
-  const method = req.method.toUpperCase();
+  const method = req.method.toLowerCase();
   const { query } = parsedUrl;
   const headers = req.headers;
 
@@ -34,17 +24,16 @@ const mainRequestHandler = (req, res) => {
     buffer += decoder.end();
     console.log({ trimmedPathname, method, query, headers, buffer });
 
+    console.log("handler", handlers.get(trimmedPathname));
     const responseHandler =
-      typeof handlers[trimmedPathname] === "undefined"
-        ? handlers.notFound
-        : handlers[trimmedPathname];
+      handlers.get(trimmedPathname) ?? handlers.get("notFound");
 
     const data = {
       trimmedPathname,
       queryStringObj: query,
       method,
       headers,
-      payload: buffer,
+      payload: parseJSONtoObject(buffer),
     };
 
     responseHandler(data, (statusCode = 200, payload = {}) => {
@@ -71,10 +60,10 @@ const httpsOptions = {
   key: fs.readFileSync("./https/key.pem"),
 };
 
-https
+/* https
   .createServer(httpsOptions, mainRequestHandler)
   .listen(config.httpsPort, () => {
     console.log(
       `Server listening on port ${config.httpsPort} in ${config.envName} mode`
     );
-  });
+  }); */
