@@ -1,16 +1,12 @@
-const db = require("./data");
+const db = require("../lib/data");
 const crypto = require("node:crypto");
-const { hashPassword } = require("./helpers");
-
-const getUser = async (phone) => {
-  if (!phone) return null;
-  try {
-    const user = await db.read("users", phone);
-    return user;
-  } catch (error) {
-    return null;
-  }
-};
+const {
+  hashPassword,
+  getUser,
+  getUserByToken,
+  isAuthTokenValid,
+  decodeToken,
+} = require("../lib/helpers");
 
 const _usersHandlers = new Map();
 
@@ -67,8 +63,12 @@ _usersHandlers.set("post", async (data, callback) => {
 });
 
 _usersHandlers.set("get", async (data, callback) => {
-  const { phone } = data.queryStringObj;
-  const user = await getUser(phone);
+  const { token } = data.headers;
+  if (!isAuthTokenValid(token)) {
+    return callback(401, { message: "Authentication required" });
+  }
+
+  const user = await getUserByToken(token);
   if (!user) {
     return callback(404, { message: "User not found" });
   }
@@ -76,9 +76,12 @@ _usersHandlers.set("get", async (data, callback) => {
 });
 
 _usersHandlers.set("patch", async (data, callback) => {
-  const { phone } = data.queryStringObj;
-  const user = await getUser(phone);
-  console.log({ user });
+  const { token } = data.headers;
+  if (!isAuthTokenValid(token)) {
+    return callback(401, { message: "Authentication required" });
+  }
+
+  const user = await getUserByToken(token);
   if (!user) {
     return callback(404, { message: "User not found" });
   }
@@ -88,50 +91,33 @@ _usersHandlers.set("patch", async (data, callback) => {
   if (lastName) user.lastName = lastName;
   if (password) user.password = hashPassword(password);
 
-  db.update("users", phone, user);
+  db.update("users", user.phone, user);
   user.password = undefined;
   callback(200, user);
 });
 
 _usersHandlers.set("delete", async (data, callback) => {
-  const { phone } = data.queryStringObj;
-  const user = await getUser(phone);
+  const { token } = data.headers;
+  if (!isAuthTokenValid(token)) {
+    return callback(401, { message: "Authentication required" });
+  }
+  const user = await getUserByToken(token);
   if (!user) {
     return callback(404, { message: "User not found" });
   }
 
-  db.delete("users", phone);
+  db.delete("users", user.phone);
   callback(200, { message: "User deleted" });
 });
 
-const handlersFn = {
-  users(data, callback) {
-    if (!_usersHandlers.has(data?.method)) {
-      return callback(405, {
-        message: `Method not allowed XXX ${data?.method}`,
-      });
-    }
-
-    return _usersHandlers.get(data.method)(data, callback);
-  },
-  sample(data, callback) {
-    callback(200, { name: "sample handler" });
-  },
-  ping(data, callback) {
-    callback(200);
-  },
-  notFound(data, callback) {
-    callback(404, { message: "ressouce not found" });
-  },
-};
-
-const handlers = new Map();
-for (const [key, value] of Object.entries(handlersFn)) {
-  if (typeof value === "function") {
-    handlers.set(key, value);
+function users(data, callback) {
+  if (!_usersHandlers.has(data?.method)) {
+    return callback(405, {
+      message: `Method not allowed XXX ${data?.method}`,
+    });
   }
+
+  return _usersHandlers.get(data.method)(data, callback);
 }
 
-console.log({ usersHandler: handlers.get("users") });
-
-module.exports = handlers;
+module.exports = users;

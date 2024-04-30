@@ -4,7 +4,7 @@ const url = require("node:url");
 const fs = require("node:fs");
 const { StringDecoder } = require("node:string_decoder");
 const config = require("./lib/config");
-const handlers = require("./lib/handlers");
+const handlers = require("./handlers");
 const { parseJSONtoObject } = require("./lib/helpers");
 
 const mainRequestHandler = (req, res) => {
