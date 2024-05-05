@@ -1,9 +1,11 @@
 const users = require("./users");
 const tokens = require("./tokens");
+const checks = require("./checks");
 
 const handlersFn = {
   users,
   tokens,
+  checks,
   ping(data, callback) {
     callback(200);
   },

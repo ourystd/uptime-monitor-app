@@ -41,12 +41,13 @@ _tokensHandlers.set("put", async (data, callback) => {
  *
  */
 _tokensHandlers.set("delete", async (data, callback) => {
-  const { token } = data.payload;
+  const { Authorization } = data.headers;
+  const token = Authorization?.replace(/^Bearer /gi, "")?.trim();
   if (!token || !isAuthTokenValid(token)) {
     return callback(401, { message: "Authentication required" });
   }
 
-  // TODO: add token to revocation list
+  // add token to revocation list
   await db.create("revoked_tokens", token, { revokatedAt: Date.now() });
 
   callback(200);
