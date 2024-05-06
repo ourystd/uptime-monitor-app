@@ -96,6 +96,59 @@ _checksHandlers.set("get", async (data, callback) => {
   callback(200, checks);
 });
 
+_checksHandlers.set("patch", async (data, callback) => {
+  const token = getTokenFromHeaders(data.headers);
+  if (!isAuthTokenValid(token)) {
+    return callback(401, {
+      message: "Authentication required. Missing or invalid token.",
+    });
+  }
+
+  const user = await getUserByToken(token);
+  if (!user) {
+    return callback(404, {
+      message: "Authentication required. User not found",
+    });
+  } else if (!user.checks || !user.checks.length) {
+    return callback(404, { message: "No checks found" });
+  }
+
+  const { id } = data.queryStringObj;
+  const userChecks = user.checks || [];
+  if (!id || !userChecks.includes(id)) {
+    return callback(404, { message: "No check with that id found" });
+  }
+
+  try {
+    const check = await db.read("checks", id);
+    const { protocol, url, method, successCodes, timeoutInSeconds } =
+      data.payload;
+
+    const newCheck = {
+      ...check,
+      protocol,
+      url,
+      method,
+      successCodes,
+      timeoutInSeconds,
+    };
+
+    const uneditableFields = ["id", "userPhone"];
+    for (const field of Object.keys(check)) {
+      if (!uneditableFields.includes(field) && !newCheck[field]) {
+        console.log({ field });
+        newCheck[field] = check[field];
+      }
+    }
+
+    await db.update("checks", id, newCheck);
+    return callback(200, newCheck);
+  } catch (error) {
+    console.error(error);
+    return callback(500, { message: "Internal server error" });
+  }
+});
+
 _checksHandlers.set("delete", async (data, callback) => {
   const token = getTokenFromHeaders(data.headers);
 
