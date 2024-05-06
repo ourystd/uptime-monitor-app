@@ -117,7 +117,7 @@ _checksHandlers.set("delete", async (data, callback) => {
 
   const userChecks = user.checks || [];
   if (!userChecks.length || !userChecks.includes(id)) {
-    return callback(200, { message: "No checks found" });
+    return callback(404, { message: "No checks found" });
   }
 
   try {
@@ -132,7 +132,7 @@ _checksHandlers.set("delete", async (data, callback) => {
 });
 
 const checks = (data, callback) => {
-  if (!_checksHandlers.has(data?.method)) {
+  if (!_checksHandlers.has(data?.method?.toLowerCase())) {
     return callback(405, {
       message: `Method not allowed`,
     });

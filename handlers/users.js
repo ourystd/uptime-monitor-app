@@ -117,6 +117,7 @@ _usersHandlers.set("delete", async (data, callback) => {
     await db.delete("users", user.phone);
     return callback(200, { message: "User deleted" });
   } catch (error) {
+    console.log(error);
     return callback(500, { message: "Internal server error" });
   }
 });
