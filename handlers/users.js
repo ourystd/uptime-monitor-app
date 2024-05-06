@@ -5,7 +5,7 @@ const {
   getUser,
   getUserByToken,
   isAuthTokenValid,
-  decodeToken,
+  getTokenFromHeaders,
 } = require("../lib/helpers");
 
 const _usersHandlers = new Map();
@@ -63,7 +63,7 @@ _usersHandlers.set("post", async (data, callback) => {
 });
 
 _usersHandlers.set("get", async (data, callback) => {
-  const { token } = data.headers;
+  const token = getTokenFromHeaders(data.headers);
   if (!isAuthTokenValid(token)) {
     return callback(401, { message: "Authentication required" });
   }
@@ -76,7 +76,7 @@ _usersHandlers.set("get", async (data, callback) => {
 });
 
 _usersHandlers.set("patch", async (data, callback) => {
-  const { token } = data.headers;
+  const token = getTokenFromHeaders(data.headers);
   if (!isAuthTokenValid(token)) {
     return callback(401, { message: "Authentication required" });
   }
@@ -97,7 +97,8 @@ _usersHandlers.set("patch", async (data, callback) => {
 });
 
 _usersHandlers.set("delete", async (data, callback) => {
-  const { token } = data.headers;
+  const token = getTokenFromHeaders(data.headers);
+  console.log({ token });
   if (!isAuthTokenValid(token)) {
     return callback(401, { message: "Authentication required" });
   }
@@ -106,8 +107,18 @@ _usersHandlers.set("delete", async (data, callback) => {
     return callback(404, { message: "User not found" });
   }
 
-  db.delete("users", user.phone);
-  callback(200, { message: "User deleted" });
+  try {
+    // delete all user checks
+    const userChecks = user.checks || [];
+    for (const checkId of userChecks) {
+      await db.delete("checks", checkId);
+    }
+    // delete user
+    await db.delete("users", user.phone);
+    return callback(200, { message: "User deleted" });
+  } catch (error) {
+    return callback(500, { message: "Internal server error" });
+  }
 });
 
 function users(data, callback) {

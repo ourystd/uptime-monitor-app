@@ -1,6 +1,10 @@
 const crypto = require("node:crypto");
 const db = require("../lib/data");
-const { getTokenFromHeaders, getUserByToken } = require("../lib/helpers");
+const {
+  getTokenFromHeaders,
+  getUserByToken,
+  isAuthTokenValid,
+} = require("../lib/helpers");
 
 const MAX_CHECKS_PER_USER = 5;
 
@@ -56,15 +60,17 @@ _checksHandlers.set("post", async (data, callback) => {
 
 _checksHandlers.set("get", async (data, callback) => {
   const token = getTokenFromHeaders(data.headers);
-  if (!token) {
-    return callback(400, {
-      message: "Authentication required. Missing token.",
+  if (!token || !isAuthTokenValid(token)) {
+    return callback(401, {
+      message: "Authentication required. Missing or invalid token.",
     });
   }
 
   const user = await getUserByToken(token);
   if (!user) {
-    return callback(401, { message: "Authentication required" });
+    return callback(401, {
+      message: "Authentication required. User not found.",
+    });
   }
 
   const userChecks = user.checks || [];
@@ -88,6 +94,41 @@ _checksHandlers.set("get", async (data, callback) => {
   }
 
   callback(200, checks);
+});
+
+_checksHandlers.set("delete", async (data, callback) => {
+  const token = getTokenFromHeaders(data.headers);
+
+  if (!token) {
+    return callback(400, {
+      message: "Authentication required. Missing token.",
+    });
+  }
+
+  const user = await getUserByToken(token);
+  if (!user) {
+    return callback(401, { message: "Authentication required" });
+  }
+
+  const { id } = data.payload;
+  if (!id) {
+    return callback(400, { message: "Bad request, missing fields" });
+  }
+
+  const userChecks = user.checks || [];
+  if (!userChecks.length || !userChecks.includes(id)) {
+    return callback(200, { message: "No checks found" });
+  }
+
+  try {
+    await db.delete("checks", id);
+    userChecks.splice(userChecks.indexOf(id), 1);
+    await db.update("users", user.phone, { ...user, checks: userChecks });
+    return callback(200, { message: "Check deleted" });
+  } catch (error) {
+    console.error(error);
+    return callback(500, { message: "Internal server error" });
+  }
 });
 
 const checks = (data, callback) => {
