@@ -9,7 +9,7 @@ const _checksHandlers = new Map();
 _checksHandlers.set("post", async (data, callback) => {
   const token = getTokenFromHeaders(data.headers);
   if (!token) {
-    return callback(401, {
+    return callback(400, {
       message: "Authentication required. Missing token.",
     });
   }
@@ -52,6 +52,42 @@ _checksHandlers.set("post", async (data, callback) => {
   } catch (error) {
     return callback(500, { message: "Internal server error" });
   }
+});
+
+_checksHandlers.set("get", async (data, callback) => {
+  const token = getTokenFromHeaders(data.headers);
+  if (!token) {
+    return callback(400, {
+      message: "Authentication required. Missing token.",
+    });
+  }
+
+  const user = await getUserByToken(token);
+  if (!user) {
+    return callback(401, { message: "Authentication required" });
+  }
+
+  const userChecks = user.checks || [];
+  if (!userChecks.length) {
+    return callback(200, { checks: [] });
+  }
+
+  const checks = [];
+  for (const checkId of userChecks) {
+    const check = await db.read("checks", checkId);
+    checks.push(check);
+  }
+
+  const { id } = data.queryStringObj;
+  if (id) {
+    const check = checks.find((check) => check.id === id);
+    if (!check) {
+      return callback(404, { message: "Check not found" });
+    }
+    return callback(200, check);
+  }
+
+  callback(200, checks);
 });
 
 const checks = (data, callback) => {
